@@ -260,9 +260,11 @@ async def get_current_month_courses():
     current_year_month = datetime.now().strftime("%Y-%m")
 
     query = """
-        SELECT * FROM workerscourses 
-        WHERE date_file SIMILAR TO '[0-9]{4}-[0-9]{2}-[0-9]{2}'
-          AND TO_CHAR(TO_DATE(date_file, 'YYYY-MM-DD'), 'YYYY-MM') = $1
+        SELECT wc.*, w.name AS worker_name, w.email AS worker_email
+        FROM workerscourses wc
+        JOIN workers w ON wc.worker_id = w.id
+        WHERE wc.date_file SIMILAR TO '[0-9]{4}-[0-9]{2}-[0-9]{2}'
+          AND TO_CHAR(TO_DATE(wc.date_file, 'YYYY-MM-DD'), 'YYYY-MM') = $1
     """
 
     async with app.state.db.acquire() as conn:

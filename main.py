@@ -1,6 +1,20 @@
+import base64
+from datetime import datetime
+from io import BytesIO
+
 import asyncpg
 from decouple import config
-from fastapi import Body, FastAPI, HTTPException, status
+from fastapi import (
+    Body,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
+from fastapi.responses import JSONResponse, StreamingResponse
 from passlib.hash import pbkdf2_sha256
 from pydantic import BaseModel
 
@@ -154,3 +168,104 @@ async def patch_change_password(cpf: str, payload: PasswordChangeRequest = Body(
         await conn.execute(update_query, new_password_hashed, cpf)
 
         return {"message": "Password updated successfully"}
+
+
+@app.get("/workers-courses/{worker_id}")
+async def get_workers_courses(worker_id: int):
+    async with app.state.db.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT id, worker_id, file, date_file, is_payed
+            FROM workerscourses
+            WHERE worker_id = $1
+            """,
+            worker_id,
+        )
+
+    if not rows:
+        raise HTTPException(status_code=404, detail="Nenhum curso encontrado.")
+
+    result = []
+
+    for row in rows:
+        file_base64 = base64.b64encode(row["file"]).decode("utf-8")
+
+        result.append(
+            {
+                "id": row["id"],
+                "worker_id": row["worker_id"],
+                "date_file": row["date_file"],
+                "is_payed": row["is_payed"],
+                "file_base64": file_base64,
+            }
+        )
+
+    return JSONResponse(content=result)
+
+
+@app.get("/workers-courses/file/{file_id}")
+async def get_workers_courses_by_file_id(file_id: int):
+    async with app.state.db.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT file FROM workerscourses WHERE id = $1", file_id
+        )
+
+    if not row or not row["file"]:
+        raise HTTPException(status_code=404, detail="Arquivo do curso não encontrado.")
+
+    return StreamingResponse(
+        BytesIO(row["file"]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": "inline; filename=curso.pdf"},
+    )
+
+
+@app.post("/workers-courses")
+async def upload_course(
+    worker_id: int = Form(...),
+    date_file: str = Form(...),
+    is_payed: bool = Form(...),
+    file: UploadFile = File(...),
+):
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="O arquivo deve ser um PDF.")
+
+    file_data = await file.read()
+
+    async with app.state.db.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO workerscourses (worker_id, file, date_file, is_payed)
+            VALUES ($1, $2, $3, $4)
+            """,
+            worker_id,
+            file_data,
+            date_file,
+            is_payed,
+        )
+
+    return {"message": "Curso enviado e salvo com sucesso!"}
+
+
+def serialize_row(row):
+    row_dict = dict(row)
+    for key, value in row_dict.items():
+        if isinstance(value, bytes):
+            row_dict[key] = base64.b64encode(value).decode("utf-8")
+    return row_dict
+
+
+@app.get("/workerscourses/current-month")
+async def get_current_month_courses():
+    current_year_month = datetime.now().strftime("%Y-%m")
+
+    query = """
+        SELECT * FROM workerscourses 
+        WHERE date_file SIMILAR TO '[0-9]{4}-[0-9]{2}-[0-9]{2}'
+          AND TO_CHAR(TO_DATE(date_file, 'YYYY-MM-DD'), 'YYYY-MM') = $1
+    """
+
+    async with app.state.db.acquire() as conn:
+        rows = await conn.fetch(query, current_year_month)
+
+    return [serialize_row(row) for row in rows]

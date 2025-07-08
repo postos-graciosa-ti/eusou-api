@@ -106,30 +106,4 @@ async def upload_course(
     is_payed: bool = Form(...),
     file: UploadFile = File(...),
 ):
-    return handle_upload_course(app, worker_id, date_file, is_payed, file)
-
-
-# def serialize_row(row):
-#     row_dict = dict(row)
-#     for key, value in row_dict.items():
-#         if isinstance(value, bytes):
-#             row_dict[key] = base64.b64encode(value).decode("utf-8")
-#     return row_dict
-
-
-# @app.get("/workerscourses/current-month")
-# async def get_current_month_courses(user_id: str = Depends(verify_token)):
-#     current_year_month = datetime.now().strftime("%Y-%m")
-
-#     query = """
-#         SELECT wc.*, w.name AS worker_name, w.email AS worker_email
-#         FROM workerscourses wc
-#         JOIN workers w ON wc.worker_id = w.id
-#         WHERE wc.date_file SIMILAR TO '[0-9]{4}-[0-9]{2}-[0-9]{2}'
-#           AND TO_CHAR(TO_DATE(wc.date_file, 'YYYY-MM-DD'), 'YYYY-MM') = $1
-#     """
-
-#     async with app.state.db.acquire() as conn:
-#         rows = await conn.fetch(query, current_year_month)
-
-#     return [serialize_row(row) for row in rows]
+    return await handle_upload_course(app, worker_id, date_file, is_payed, file)

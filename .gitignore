@@ -2,3 +2,6 @@
 /.venv
 /middlewares/__pycache__
 /.env
+/security/__pycache__
+/models/__pycache__
+/controllers/__pycache__

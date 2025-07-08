@@ -1,8 +1,4 @@
 import asyncio
-import base64
-import threading
-from datetime import datetime
-from io import BytesIO
 
 from fastapi import (
     Body,
@@ -10,11 +6,9 @@ from fastapi import (
     FastAPI,
     File,
     Form,
-    HTTPException,
     UploadFile,
 )
-from fastapi.responses import JSONResponse, StreamingResponse
-from passlib.hash import pbkdf2_sha256
+from fastapi.responses import JSONResponse
 
 from controllers.docs import handle_get_docs
 from controllers.workers import (
@@ -26,12 +20,11 @@ from controllers.workers import (
     handle_patch_workers_data,
     handle_upload_course,
 )
-from handle_health_check import handle_health_check
+from handle_periodic_health_check import handle_periodic_health_check
 from handle_shutdown_server import handle_shutdown_server
 from handle_startup_server import handle_startup_server
 from middlewares.add_cors_middleware import add_cors_middleware
 from models.auth import AuthData, PasswordChangeRequest
-from security.create_access_token import create_access_token
 from security.verify_token import verify_token
 
 app = FastAPI()
@@ -41,7 +34,7 @@ add_cors_middleware(app)
 
 @app.on_event("startup")
 async def startup():
-    asyncio.create_task(handle_health_check())
+    asyncio.create_task(handle_periodic_health_check())
 
     await handle_startup_server(app)
 
@@ -57,6 +50,11 @@ async def shutdown():
 @app.get("/")
 async def get_docs():
     return await handle_get_docs()
+
+
+@app.get("/health-check", tags=["Health Check"])
+def health_check():
+    return JSONResponse(content={"status": "ok"}, status_code=200)
 
 
 @app.post("/eusou/workers/{cpf}")

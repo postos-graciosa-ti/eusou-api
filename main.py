@@ -1,4 +1,6 @@
+import asyncio
 import base64
+import threading
 from datetime import datetime
 from io import BytesIO
 
@@ -24,6 +26,7 @@ from controllers.workers import (
     handle_patch_workers_data,
     handle_upload_course,
 )
+from handle_health_check import handle_health_check
 from handle_shutdown_server import handle_shutdown_server
 from handle_startup_server import handle_startup_server
 from middlewares.add_cors_middleware import add_cors_middleware
@@ -38,6 +41,8 @@ add_cors_middleware(app)
 
 @app.on_event("startup")
 async def startup():
+    asyncio.create_task(handle_health_check())
+
     await handle_startup_server(app)
 
 

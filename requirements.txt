@@ -9,6 +9,7 @@ greenlet==3.2.3
 h11==0.16.0
 idna==3.10
 passlib==1.7.4
+psutil==7.0.0
 pyasn1==0.6.1
 pydantic==2.11.7
 pydantic-core==2.33.2

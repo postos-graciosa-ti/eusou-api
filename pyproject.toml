@@ -8,6 +8,7 @@ dependencies = [
     "asyncpg>=0.30.0",
     "fastapi>=0.115.14",
     "passlib>=1.7.4",
+    "psutil>=7.0.0",
     "python-decouple>=3.8",
     "python-jose>=3.5.0",
     "python-multipart>=0.0.20",
